@@ -1,26 +1,41 @@
-const express = require('express');
-const session = require('express-session');
-const mongoose = require('mongoose');
+const express = require("express");
+const session = require("express-session");
 const app = express();
-require('dotenv').config();
+const passport = require("passport");
+const MySqlStore = require("express-mysql-session")(session);
+const bodyParser = require("body-parser");
+const db = require("./db");
+require("dotenv").config();
+require('./passport');
+const options = {
+  host: "",
+  user: "session_test",
+  password: "password",
+  database: "session_test",
+};
 
-mongoose.connect(process.env.db_connection);
-const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'error connecting to the database'));
+app.use(bodyParser.json());
+const sessionStore = new MySqlStore({}, db);
+app.use(
+  session({
+    secret: process.env.SECRET,
+    cookie: { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 },
+    resave: false,
+    store: sessionStore,
+    saveUninitialized: true,
+  })
+);
 
+app.use(passport.initialize());
+app.use(passport.session());
 
-app.use(session({
-  secret: process.env.SECRET,
-  cookie: {httpOnly: true, maxAge: 24 * 60 * 60 * 1000},
-  resave: false,
-  saveUninitialized: true,
-}
-))
-app.get('/', (req, res ) => { 
-  res.send('<h1> hello world! </h1>');
+app.get("/", (req, res) => {
+  res.send("<h1> hello world! </h1>");
 });
-
-const server = app.listen(3000, () => {
-  let host = server.address().address;
-  console.info(`server started on port ${host}`);
+const userRouter = require("./routes/users");
+const postRouter = require("./routes/posts");
+app.use("/user", userRouter);
+app.use("/posts", postRouter);
+app.listen(3000, () => {
+  console.info(`server started on port 3000`);
 });
