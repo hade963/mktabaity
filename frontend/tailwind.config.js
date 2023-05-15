@@ -8,6 +8,8 @@ module.exports = {
       colors:{
         'main': '#DAC6ED',
         'accent': '#9D4CDC',
+        'card': '#D9D9D9',
+        'nav': '#9FA3A5',
       },
     },
   },
