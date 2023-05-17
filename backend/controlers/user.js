@@ -3,19 +3,7 @@ const bcrypt = require("bcryptjs");
 const db = require("../db");
 const passport = require("passport");
 const jwt = require("jsonwebtoken");
-
-// Helper function to handle async database queries
-const queryDb = async (query, values) => {
-  return new Promise((resolve, reject) => {
-    db.query(query, values, (err, result) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(result);
-      }
-    });
-  });
-};
+const { queryDb } = require("../utils");
 
 exports.user_signup = [
   body("firstname")
@@ -95,7 +83,7 @@ exports.user_signup = [
     })
     .trim(),
 
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const errors = validationResult(req);
 
@@ -124,9 +112,7 @@ exports.user_signup = [
       });
     } catch (err) {
       console.error(err);
-      return res.status(500).json({
-        msg: "حصل خطاء في السيرفر",
-      });
+      next(err);
     }
   },
 ];
@@ -146,7 +132,7 @@ exports.user_login = [
       return true;
     }),
   body("password").escape().trim(),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const errors = validationResult(req);
 
@@ -163,7 +149,6 @@ exports.user_login = [
 
       const hash = result[0].password;
       const isPasswordCorrect = await bcrypt.compare(req.body.password, hash);
-        console.log(req.body.password, isPasswordCorrect);
       if (isPasswordCorrect) {
         const token = jwt.sign(
           { id: result[0].id, username: result[0].username },
@@ -181,16 +166,14 @@ exports.user_login = [
       }
     } catch (err) {
       console.error(err);
-      return res.status(500).json({
-        msg: "حصل خطاء في السيرفر",
-      });
+      next(err);
     }
   },
 ];
 
 exports.user_logout = [
   passport.authenticate("jwt", { session: false }),
-  (req, res) => {
+  (req, res, next) => {
     try {
       req.session.destroy();
       return res.status(200).json({
@@ -198,9 +181,122 @@ exports.user_logout = [
       });
     } catch (err) {
       console.error(err);
-      return res.status(500).json({
-        msg: "حصل خطاء في السيرفر",
-      });
+      next(err);
     }
   },
 ];
+
+exports.add_to_cart = [
+  passport.authenticate("jwt", { session: false }),
+  body("postid")
+    .custom((value) => {
+      return value ? true : false;
+    })
+    .withMessage("معرف المنشور غير صالح")
+    .escape(),
+  body("quantity")
+    .custom((value) => {
+      return value ? true : false;
+    })
+    .withMessage("الكمية لا يجب أن تكون فارغة")
+    .escape(),
+  async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        errors: errors.array(),
+      });
+    }
+    try {
+      const item = await queryDb(
+        "SELECT * FROM cart WHERE postid = ? AND userid = ?",
+        [req.body.postid, req.user]
+      );
+      if (item.length > 0) {
+        return res.status(409).json({
+          msg: "العنصر موجود في السلة بالفعل",
+        });
+      }
+      await queryDb(
+        `INSERT INTO cart (userid, postid, quantity) VALUES (?, ?, ?)`,
+        [req.user, req.body.postid, req.body.quantity]
+      );
+      res.status(200).json({
+        msg: "تم اضافة السلعة الى السلة بنجاح",
+      });
+    } catch (err) {
+      console.log(err);
+      next(err);
+    }
+  },
+];
+
+exports.remove_from_cart = [
+  passport.authenticate("jwt", { session: false }),
+  body("postid")
+    .escape()
+    .custom((value) => {
+      return value ? true : false;
+    })
+    .withMessage("معرف المنشور غير صالح"),
+  async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        errors: errors.array(),
+      });
+    }
+    try {
+      const item = await queryDb(
+        "SELECT * FROM cart WHERE postid = ? AND userid = ?",
+        [req.body.postid, req.user]
+      );
+      if (item.length > 0) {
+        await queryDb("DELETE FROM cart WHERE postid = ? AND userid = ?", [
+          req.body.postid,
+          req.user,
+        ]);
+        res.status(200).json({
+          msg: "تم حذف العنصر من السلة",
+        });
+      } else {
+        res.status(404).json({
+          msg: "لا يوجد شيء ليتم حذفه",
+        });
+      }
+    } catch (err) {
+      console.log(err);
+      next(err);
+    }
+  },
+];
+
+exports.get_cart_items = [
+  passport.authenticate('jwt', {session: false}),
+  async (req, res, next) => { 
+    try { 
+
+      const query = `
+      SELECT c.quantity, c.id AS cart_id, p.title, p.content,
+      p.price *c.quantity AS final_price,p.price AS price_for_unit ,p.image   FROM cart AS c
+      INNER JOIN posts As p ON c.postid = p.id WHERE c.userid = ?;`;
+      
+      const itemsInCart = await queryDb(query, [req.user]);
+      console.log(itemsInCart);
+      if(itemsInCart.length > 0) { 
+        return res.status(200).json({
+          items: itemsInCart,
+        });
+      }
+      else { 
+        return res.status(404).json({
+          msg: 'لا يوجد عناصر في السلة لعرضها ',
+        })
+      }
+    }
+    catch(err) { 
+      console.log(err);
+      next(err);
+    }
+  }
+]

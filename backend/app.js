@@ -6,13 +6,7 @@ const MySqlStore = require("express-mysql-session")(session);
 const bodyParser = require("body-parser");
 const db = require("./db");
 require("dotenv").config();
-require('./passport');
-const options = {
-  host: "",
-  user: "session_test",
-  password: "password",
-  database: "session_test",
-};
+require('./passport')
 
 app.use(bodyParser.json());
 const sessionStore = new MySqlStore({}, db);
@@ -32,10 +26,17 @@ app.use(passport.session());
 app.get("/", (req, res) => {
   res.send("<h1> hello world! </h1>");
 });
+app.use('/images',express.static('uploads'));
 const userRouter = require("./routes/users");
 const postRouter = require("./routes/posts");
 app.use("/user", userRouter);
 app.use("/posts", postRouter);
+
+app.use((err, req, res, next) => { 
+  return res.status(500).json({
+    msg: "حصل خطاء في السيرفر",
+  });
+})
 app.listen(3000, () => {
-  console.info(`server started on port 3000`);
+  console.info(`server started on port 300`);
 });
