@@ -45,8 +45,11 @@ exports.create_post = [
           req.body.content,
           req.body.price,
           createdDate,
-          req.file.path.replace(/\\/g, "/"),
         ];
+        const imageRegEx = /\.(gif|jpe?g|jfif|tiff?|png|webp|bmp)$/i;
+        if (req.file && imageRegEx.test(req.file.filename)) {
+          postdetails.push(req.file.path.replace(/\\/g, "/"));
+        }
         await queryDb(
           "INSERT INTO posts (authorid, title, content, price, createddate, image) VALUES(?,?,?,?,?,?)",
           postdetails
@@ -291,4 +294,33 @@ exports.get_post = [
   },
 ];
 
-
+exports.delete_post = [
+  passport.authenticate("jwt", { session: false }),
+  body("postid").escape(),
+  async (req, res, next) => {
+    if (req.body.postid) {
+      const post = await queryDb(
+        "SELECT * FROM posts WHERE id = ? AND authorid = ?",
+        [req.body.postid, req.user]
+      );
+      if (post.length > 0) {
+        await queryDb("DELETE FROM posts WHERE id = ? AND authorid = ?", [
+          req.body.postid,
+          req.user,
+        ]);
+        return res.status(200).json({
+          msg: 'تم حذف المنشور بنجاح',
+        });
+      }
+      else { 
+        return res.status(404).json({
+          msg: 'المنشور غير موجود ',
+        })
+      }
+    } else {
+      return res.status(400).json({
+        msg: "معرف المنشور غير موجود",
+      });
+    }
+  },
+];

@@ -4,6 +4,18 @@ const db = require("../db");
 const passport = require("passport");
 const jwt = require("jsonwebtoken");
 const { queryDb } = require("../utils");
+const multer = require("multer");
+const path = require('node:path');
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
+const upload = multer({ storage: storage });
 
 exports.user_signup = [
   body("firstname")
@@ -272,25 +284,103 @@ exports.remove_from_cart = [
 ];
 
 exports.get_cart_items = [
-  passport.authenticate('jwt', {session: false}),
-  async (req, res, next) => { 
-    try { 
-
+  passport.authenticate("jwt", { session: false }),
+  async (req, res, next) => {
+    try {
       const query = `
       SELECT c.quantity, c.id AS cart_id, p.title, p.content,
       p.price *c.quantity AS final_price,p.price AS price_for_unit ,p.image   FROM cart AS c
       INNER JOIN posts As p ON c.postid = p.id WHERE c.userid = ?;`;
-      
+
       const itemsInCart = await queryDb(query, [req.user]);
       console.log(itemsInCart);
-      if(itemsInCart.length > 0) { 
+      if (itemsInCart.length > 0) {
         return res.status(200).json({
           items: itemsInCart,
         });
+      } else {
+        return res.status(404).json({
+          msg: "لا يوجد عناصر في السلة لعرضها ",
+        });
+      }
+    } catch (err) {
+      console.log(err);
+      next(err);
+    }
+  },
+];
+
+exports.get_profile = [
+  passport.authenticate("jwt", { session: false }),
+  async (req, res, next) => {
+    try { 
+
+      const user = await queryDb(
+        "SELECT firstname, lastname, username, email, phoneNumber, photo from users WHERE id = ?",
+        req.user
+        );
+        
+        if(user.length > 0) {
+          return res.status(200).json({ 
+        user: user[0],
+      });
+    }
+    else { 
+      return res.status(404).json({
+        msg: 'المستخدم غير موجود',
+      });
+    }
+  }
+  catch(err) { 
+    console.log(err);
+    next(err);
+  }
+  },
+];
+
+exports.add_profile_photo = [
+  passport.authenticate('jwt', {session: false}),
+  upload.single('photo'),
+  async (req, res, next) => { 
+    const imageRegEx = /\.(gif|jpe?g|jfif|tiff?|png|webp|bmp)$/i;
+
+    if (req.file && imageRegEx.test(req.file.filename)) {
+      try { 
+        const query = 'UPDATE users SET photo = ? WHERE id = ?';
+        await queryDb(query, [req.file.path.replace(/\\/g, "/"), req.user]);
+        return res.status(200).json({
+          msg: 'تم اضافة الصورة بنجاح',
+        })
+      }
+      catch(err) { 
+        console.log(err);
+        next(err);
+      }
+    }
+    else { 
+      return res.status(400).json({
+        msg: 'الملف المرسل غير صالح الرجاء المحاولة من جديد',
+      })
+    }
+  }
+]
+
+exports.delete_user = [
+  passport.authenticate('jwt', {session: false}),
+  body('username')
+  .escape(),
+  async (req, res, next) => { 
+    try { 
+      if(req.body.username) { 
+        req.session.destroy();
+        await queryDb('DELETE  FROM users WHERE id = ? AND username = ?', [req.user, req.body.username]);
+        res.status(200).json({
+          msg: 'تم حذف المستخدم بنجاح',
+        });
       }
       else { 
-        return res.status(404).json({
-          msg: 'لا يوجد عناصر في السلة لعرضها ',
+        res.status(400).json({
+          msg: 'اسم المستخدم غير موجود يرجى ادخاله والمحاولة لاحقا',
         })
       }
     }
@@ -298,5 +388,5 @@ exports.get_cart_items = [
       console.log(err);
       next(err);
     }
-  }
+    }
 ]
