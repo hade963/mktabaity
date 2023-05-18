@@ -4,10 +4,12 @@ const app = express();
 const passport = require("passport");
 const MySqlStore = require("express-mysql-session")(session);
 const bodyParser = require("body-parser");
+const helmet = require('helmet');
 const db = require("./db");
 require("dotenv").config();
 require('./passport')
 
+app.use(helmet());
 app.use(bodyParser.json());
 const sessionStore = new MySqlStore({}, db);
 app.use(
@@ -19,7 +21,7 @@ app.use(
     saveUninitialized: true,
   })
 );
-
+process.env.NODE_ENV = 'production';
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -37,6 +39,14 @@ app.use((err, req, res, next) => {
     msg: "حصل خطاء في السيرفر",
   });
 })
-app.listen(3000, () => {
-  console.info(`server started on port 300`);
+
+db.on('connection', function (connection) {
+  app.listen(3000, () => {
+    console.info(`server started on port 300`);
+  });
 });
+
+process.on('unhandledRejection', (err) => {
+  console.log(err.message)
+  // Log to file 
+}) 

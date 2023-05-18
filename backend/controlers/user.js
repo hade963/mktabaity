@@ -145,6 +145,12 @@ exports.user_login = [
     }),
   body("password").escape().trim(),
   async (req, res, next) => {
+
+    if(req.session.token) { 
+      return res.status(400).json({
+        msg: 'تم تسجيل الدخول بالفعل',
+      });
+    }
     try {
       const errors = validationResult(req);
 
