@@ -1,7 +1,5 @@
 node_modules
 .env
-yarn.lock
 populate.js
 yarn-error.log
 readme.md
-package-lock.json
