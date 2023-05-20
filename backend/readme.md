@@ -37,3 +37,72 @@ and it accept the following parameters
 "password":"user password"
 }
 ```
+
+#### logout endpoint 
+this endpoint is accessaable via `/user/logout  POST`
+**NO PARAMETERS REQUIRED**
+
+#### Add Items To Cart endpoint
+this endpoint is used to add items to the user cart `/user/cart POST`
+
+and it accepts the following paramerters 
+```JSON
+{
+  "postid": 10,
+  "quantity": 1
+}
+```
+> NOTES: 
+> this end point accepts the postid which is sent to the client with get posts or get post which will disscussed later
+
+#### Remove Items From Cart endpoint
+this endpoint is used to remove single item from the cart `/user/cart DELETE`
+it requires only one parameter 
+```JSON
+{
+  "postid": 10
+}
+```
+
+
+#### Get cart Items endpoint
+this end point is used to get the items in the user cart `/user/cart GET`
+
+**NO PARAMETERS REQUIRED**
+
+#### Get user profile endpoint
+this endpoint is used to get the user profile information `/user/ GET`
+
+**NO PARAMETERS REQUIRED**
+
+#### Edit user profile endpoint
+this end point is used to edit user details `/user/ PUT`
+and its paramters is as follow: 
+```JSON
+{
+  "username": "new user name",
+  "email": "new email",
+  "password": "new password",
+  "phonenumber": "new phone number"
+}
+```
+**Each existed feild will be updated and the rest will stay as before**
+
+#### Remove user endpoint
+this end point is used to delete a user profile `/user/ DELETE`
+end it requires username to submit the deletion
+```JSON
+{
+  "username": "user username"
+}
+```
+#### Add profile photo endpoint
+this endpoint is used to add photo to the user account `/user/photo POST'
+
+the request body have to be [multipart/formdata](https://refine.dev/blog/how-to-multipart-upload/) type
+```JSON 
+{
+  "photo": "a file uploaded using html input type file element"
+}
+```
+**the file have to be an image with image extention**
