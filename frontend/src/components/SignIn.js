@@ -26,9 +26,9 @@ const SignIn = () => {
   let inputClass = 'flex flex-row items-center gap-3 rounded-2xl text-sm bg-white h-[2.25rem] w-full'
 
   return (
-    <>
+    <>t
       <div style={{backgroundImage: bgImage}} className='h-[16.3rem] w-full bg-contain bg-no-repeat bg-top'/>
-      <div className='flex flex-col justify-start items-center gap-1 h-[35.3rem] p-1 m-2'>
+      <div className='flex flex-col jusify-start items-centerw-full gap-1 h-[35.3rem] p-1 m-2'>
         <div className='flex items-center w-[98%] h-[2.25rem] text-base font-semibold'>تسجيل الدخول</div>
         <div className={inputGroupClass}>
           <div className={inputLabelClass}>البريد الالكتروني<span className='text-red-700'>*</span></div>
