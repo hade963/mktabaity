@@ -14,14 +14,13 @@ app.use(bodyParser.json());
 const sessionStore = new MySqlStore({}, db);
 app.use(
   session({
-    secret: process.env.SECRET,
+    secret: process.env.SECRET || 'adjfadjfq@#$!#$%@$',
     cookie: { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 },
     resave: false,
     store: sessionStore,
     saveUninitialized: true,
   })
 );
-process.env.NODE_ENV = 'production';
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -34,19 +33,16 @@ const postRouter = require("./routes/posts");
 app.use("/user", userRouter);
 app.use("/posts", postRouter);
 
-app.use((err, req, res, next) => { 
-  return res.status(500).json({
-    msg: "حصل خطاء في السيرفر",
-  });
-})
-
-db.on('connection', function (connection) {
-  app.listen(3000, () => {
-    console.info(`server started on port 300`);
-  });
+app.listen(3000, () => {
+  console.log(`server started on port 3000`);
 });
-
 process.on('unhandledRejection', (err) => {
   console.log(err.message)
   // Log to file 
 }) 
+app.use((err, req, res, next) => { 
+  console.log(err);
+  return res.status(500).json({
+    msg: "حصل خطاء في السيرفر",
+  });
+})

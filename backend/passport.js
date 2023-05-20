@@ -14,7 +14,7 @@ const options = {
     return token;
   }
   ]),
-  secretOrKey: process.env.SECRET,
+  secretOrKey: process.env.SECRET || 'adjfadjfq@#$!#$%@$',
 }
 
 

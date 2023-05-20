@@ -5,12 +5,10 @@ const passport = require("passport");
 const jwt = require("jsonwebtoken");
 const { queryDb } = require("../utils");
 const multer = require("multer");
-const path = require('node:path');
+const path = require("path");
+const fs = require("@cyclic.sh/s3fs");
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
   filename: (req, file, cb) => {
     cb(null, Date.now() + path.extname(file.originalname));
   },
@@ -145,10 +143,9 @@ exports.user_login = [
     }),
   body("password").escape().trim(),
   async (req, res, next) => {
-
-    if(req.session.token) { 
+    if (req.session.token) {
       return res.status(400).json({
-        msg: 'تم تسجيل الدخول بالفعل',
+        msg: "تم تسجيل الدخول بالفعل",
       });
     }
     try {
@@ -225,26 +222,36 @@ exports.add_to_cart = [
         errors: errors.array(),
       });
     }
-    try {
-      const item = await queryDb(
-        "SELECT * FROM cart WHERE postid = ? AND userid = ?",
-        [req.body.postid, req.user]
-      );
-      if (item.length > 0) {
-        return res.status(409).json({
-          msg: "العنصر موجود في السلة بالفعل",
+    const post = await queryDb(
+      "SELECT * FROM posts WHERE id = ? ",
+      req.body.postid
+    );
+    if (post.length > 0) {
+      try {
+        const item = await queryDb(
+          "SELECT * FROM cart WHERE postid = ? AND userid = ?",
+          [req.body.postid, req.user]
+        );
+        if (item.length > 0) {
+          return res.status(409).json({
+            msg: "العنصر موجود في السلة بالفعل",
+          });
+        }
+        await queryDb(
+          `INSERT INTO cart (userid, postid, quantity) VALUES (?, ?, ?)`,
+          [req.user, req.body.postid, req.body.quantity]
+        );
+        res.status(200).json({
+          msg: "تم اضافة السلعة الى السلة بنجاح",
         });
+      } catch (err) {
+        console.log(err);
+        next(err);
       }
-      await queryDb(
-        `INSERT INTO cart (userid, postid, quantity) VALUES (?, ?, ?)`,
-        [req.user, req.body.postid, req.body.quantity]
-      );
-      res.status(200).json({
-        msg: "تم اضافة السلعة الى السلة بنجاح",
+    } else {
+      return res.status(404).json({
+        msg: "لم يتم العثور على المنشور المطلوب",
       });
-    } catch (err) {
-      console.log(err);
-      next(err);
     }
   },
 ];
@@ -299,7 +306,6 @@ exports.get_cart_items = [
       INNER JOIN posts As p ON c.postid = p.id WHERE c.userid = ?;`;
 
       const itemsInCart = await queryDb(query, [req.user]);
-      console.log(itemsInCart);
       if (itemsInCart.length > 0) {
         return res.status(200).json({
           items: itemsInCart,
@@ -319,80 +325,84 @@ exports.get_cart_items = [
 exports.get_profile = [
   passport.authenticate("jwt", { session: false }),
   async (req, res, next) => {
-    try { 
-
+    try {
       const user = await queryDb(
         "SELECT firstname, lastname, username, email, phoneNumber, photo from users WHERE id = ?",
         req.user
-        );
-        
-        if(user.length > 0) {
-          return res.status(200).json({ 
-        user: user[0],
-      });
+      );
+
+      if (user.length > 0) {
+        return res.status(200).json({
+          user: user[0],
+        });
+      } else {
+        return res.status(404).json({
+          msg: "المستخدم غير موجود",
+        });
+      }
+    } catch (err) {
+      console.log(err);
+      next(err);
     }
-    else { 
-      return res.status(404).json({
-        msg: 'المستخدم غير موجود',
-      });
-    }
-  }
-  catch(err) { 
-    console.log(err);
-    next(err);
-  }
   },
 ];
 
 exports.add_profile_photo = [
-  passport.authenticate('jwt', {session: false}),
-  upload.single('photo'),
-  async (req, res, next) => { 
+  passport.authenticate("jwt", { session: false }),
+  upload.single("photo"),
+  async (req, res, next) => {
     const imageRegEx = /\.(gif|jpe?g|jfif|tiff?|png|webp|bmp)$/i;
 
     if (req.file && imageRegEx.test(req.file.filename)) {
-      try { 
-        const query = 'UPDATE users SET photo = ? WHERE id = ?';
+
+      fs.writeFile(req.file.filename, req.file.buffer, function(err) {
+        if (err) {
+          console.error(err);
+          return res.status(500).send('حدث خطأ أثناء رفع الملف الرجاء المحاولة لاحقا');
+        }
+      });
+
+      try {
+        const query = "UPDATE users SET photo = ? WHERE id = ?";
         await queryDb(query, [req.file.path.replace(/\\/g, "/"), req.user]);
         return res.status(200).json({
-          msg: 'تم اضافة الصورة بنجاح',
-        })
-      }
-      catch(err) { 
+          msg: "تم اضافة الصورة بنجاح",
+        });
+      } catch (err) {
         console.log(err);
         next(err);
       }
-    }
-    else { 
+
+    } else {
       return res.status(400).json({
-        msg: 'الملف المرسل غير صالح الرجاء المحاولة من جديد',
-      })
+        msg: "الملف المرسل غير صالح الرجاء المحاولة من جديد",
+      });
     }
-  }
-]
+  },
+];
 
 exports.delete_user = [
-  passport.authenticate('jwt', {session: false}),
-  body('username')
-  .escape(),
-  async (req, res, next) => { 
-    try { 
-      if(req.body.username) { 
+  passport.authenticate("jwt", { session: false }),
+  body("username").escape(),
+  async (req, res, next) => {
+    try {
+      if (req.body.username) {
         req.session.destroy();
-        await queryDb('DELETE  FROM users WHERE id = ? AND username = ?', [req.user, req.body.username]);
+        await queryDb("DELETE  FROM users WHERE id = ? AND username = ?", [
+          req.user,
+          req.body.username,
+        ]);
         res.status(200).json({
-          msg: 'تم حذف المستخدم بنجاح',
+          msg: "تم حذف المستخدم بنجاح",
+        });
+      } else {
+        res.status(400).json({
+          msg: "اسم المستخدم غير موجود يرجى ادخاله والمحاولة لاحقا",
         });
       }
-      else { 
-        res.status(400).json({
-          msg: 'اسم المستخدم غير موجود يرجى ادخاله والمحاولة لاحقا',
-        })
-      }
-    }
-    catch(err) { 
+    } catch (err) {
       console.log(err);
       next(err);
     }
-    }
-]
+  },
+];

@@ -2,13 +2,15 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "the backend of book library project",
-  "main": "app.js",
+  "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "build": "npm install --production"
   },
   "dependencies": {
+    "@cyclic.sh/s3fs": "^1.2.8",
     "async": "^3.2.4",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
