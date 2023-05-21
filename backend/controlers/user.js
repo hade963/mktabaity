@@ -354,11 +354,12 @@ exports.add_profile_photo = [
     const imageRegEx = /\.(gif|jpe?g|jfif|tiff?|png|webp|bmp)$/i;
 
     if (req.file && imageRegEx.test(req.file.filename)) {
-
-      fs.writeFile(req.file.filename, req.file.buffer, function(err) {
+      fs.writeFile(req.file.filename, req.file.buffer, function (err) {
         if (err) {
           console.error(err);
-          return res.status(500).send('حدث خطأ أثناء رفع الملف الرجاء المحاولة لاحقا');
+          return res
+            .status(500)
+            .send("حدث خطأ أثناء رفع الملف الرجاء المحاولة لاحقا");
         }
       });
 
@@ -372,7 +373,6 @@ exports.add_profile_photo = [
         console.log(err);
         next(err);
       }
-
     } else {
       return res.status(400).json({
         msg: "الملف المرسل غير صالح الرجاء المحاولة من جديد",
@@ -400,6 +400,134 @@ exports.delete_user = [
           msg: "اسم المستخدم غير موجود يرجى ادخاله والمحاولة لاحقا",
         });
       }
+    } catch (err) {
+      console.log(err);
+      next(err);
+    }
+  },
+];
+
+exports.edit_user_profile = [
+  passport.authenticate("jwt", { session: false }),
+  body("email")
+    .trim()
+    .isEmail()
+    .escape()
+    .custom(async (value) => {
+      const result = await queryDb(
+        "SELECT * FROM users WHERE email = ?",
+        value
+      );
+      if (result.length > 0) {
+        throw new Error("الايميل تم استخدامه بالفعل");
+      }
+      return true;
+    }),
+  body("phonenumber")
+    .escape()
+    .trim()
+    .custom(async (value) => {
+      const result = await queryDb(
+        "SELECT * FROM users WHERE phoneNumber = ?",
+        value
+      );
+      if (result.length > 0) {
+        throw new Error("رقم الهاتف تم استخدامه بالفعل");
+      }
+      const regex = /^(\+?963|0)?9\d{8}$/;
+      if (!regex.test(value)) {
+        throw new Error("رقم الهاتف غير صالح للاسنخدام");
+      }
+      return true;
+    }),
+  body("username")
+    .custom(async (value) => {
+      const result = await queryDb(
+        "SELECT * FROM users WHERE username = ?",
+        value
+      );
+      if (result.length > 0) {
+        throw new Error("اسم المستخدم موجود بالفعل");
+      }
+      return true;
+    })
+    .trim(),
+  async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        errors: errors.array(),
+      });
+    }
+    try {
+      let query = "UPDATE users SET ";
+      let details = [];
+      if (req.body.username && req.body.username.length > 2) {
+        query += "username = ?";
+        details.push(req.body.username);
+      }
+      if (req.body.email) {
+        query += ", email = ?";
+        details.push(req.body.email);
+      }
+      if (req.body.phonenumber) {
+        query += ", phonenumber = ?";
+        details.push(req.body.phonnumber);
+      }
+      if (details.length > 0) {
+        query += " WHERE id = ?";
+        details.push(req.user);
+        await queryDb(query, details);
+        res.status(200).json({
+          msg: "تم تعديل الملف الشخصي بنجاح",
+        });
+      } else {
+        res.status(400).json({
+          msg: "لايوجد شيء ليتم تعديله",
+        });
+      }
+    } catch (err) {
+      console.log(err);
+      next(err);
+    }
+  },
+];
+
+exports.change_user_password = [
+  passport.authenticate("jwt", { session: false }),
+  body("password")
+    .isLength({ min: 6 })
+    .withMessage("كلمة السر يجب ان تحتوي 6 احرف على الاقل ")
+    .escape()
+    .trim()
+    .custom((value) => {
+      if (!isNaN(value)) {
+        throw new Error("كلمة السر يجب ان تحتوي على احرف وارقام");
+      }
+      return true;
+    }),
+  body("repassword")
+    .escape()
+    .trim()
+    .custom((value, { req }) => {
+      if (value !== req.body.password) {
+        throw new Error("كلمة السر غير متطابقة ");
+      }
+      return true;
+    }),
+  async (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        errors: errors.array(),
+      });
+    }
+    try {
+      const hash = bcrypt.hashSync(req.body.password);
+      await queryDb("UPDATE users SET password = ? WHERE id = ?", [req.user]);
+      res.status(200).json({
+        msg: "تم تغير كلمة السر بنجاح",
+      });
     } catch (err) {
       console.log(err);
       next(err);

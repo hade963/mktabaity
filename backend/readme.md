@@ -1,36 +1,32 @@
 # API_REFERENCE
-this api is designed for book store website 
-and it's following the RESTFUL API principles   
+This API is designed for a book store website and follows RESTful API principles. 
 
 ## API ROUTERS
-### user router 
-the user router is available in the `/user` endponit 
-and it has multi subendpoint 
-#### signup endpoint 
-this is the first endpoint in the user router and it accessed like ```/user/signup   POST```
-the body of the request have to be json and it is like this 
+### User Router 
+The user router is available at the `/user` endpoint and has multiple subendpoints. 
+#### Signup Endpoint 
+This endpoint is used to create a new user account and is accessed via `POST /user/signup`. The request body should be a JSON object with the following parameters: 
 
 ```JSON
 {
 "firstname": "john",
 "lastname": "doe",
-"username":"johndoe123"
-"email":"example@prov.co"
-"password":"some password"
-"repassword":"repate the password"
+"username":"johndoe123",
+"email":"example@prov.co",
+"password":"some password",
+"repassword":"repeate the password",
 "phonenumber":"+9639900000082"
 }
 ```
-##### signup request body constraints 
-1. first/last names have to be 2 chars at least and never be empty 
-2. email and username have to be unique for every user
-3. passwords must be 6 chars at least and must contain one character(a-z)
-4. phone number must be a valid syrian republic phone number 
+##### The following constraints apply to the request body:
+- first/last names have to be 2 chars at least and never be empty 
+-  email and username have to be unique for every user
+- passwords must be 6 chars at least and must contain one character(a-z)
+- phone number must be a valid syrian republic phone number 
 
-#### login endpoint 
-as the signup and every user endpoint it can be accessed like `/user/login  POST` 
-the body of the request have to be json 
-and it accept the following parameters 
+#### Login Endpoint 
+This endpoint is used to authenticate a user and is accessed via `POST /user/login`. The request body should be a JSON object with the following parameters: 
+
 ```JSON 
 {
 "username":"username/email",
@@ -38,71 +34,125 @@ and it accept the following parameters
 }
 ```
 
-#### logout endpoint 
-this endpoint is accessaable via `/user/logout  POST`
-**NO PARAMETERS REQUIRED**
+#### Logout Endpoint 
+This endpoint is used to log out a user and is accessed via `POST /user/logout`. **No parameters are required**.
 
-#### Add Items To Cart endpoint
-this endpoint is used to add items to the user cart `/user/cart POST`
+#### Cart Endpoints
+There are several endpoints related to the user's shopping cart:
 
-and it accepts the following paramerters 
+- `POST /user/cart`: Add an item to the user's cart. The request body should be a JSON object with the following parameters:
+
 ```JSON
 {
   "postid": 10,
   "quantity": 1
 }
 ```
-> NOTES: 
-> this end point accepts the postid which is sent to the client with get posts or get post which will disscussed later
+> Note that the postId parameter should be obtained from the server > > via the /posts endpoint.
 
-#### Remove Items From Cart endpoint
-this endpoint is used to remove single item from the cart `/user/cart DELETE`
-it requires only one parameter 
+- `DELETE /user/cart`: Remove a single item from the user's cart. The request body should be a JSON object with the following parameter:
 ```JSON
 {
   "postid": 10
 }
 ```
+- `GET /user/cart`: Get the items in the user's cart.**No parameters are required**.
 
 
-#### Get cart Items endpoint
-this end point is used to get the items in the user cart `/user/cart GET`
+#### Profile Endpoints
+There are several endpoints related to the user's profile:
 
-**NO PARAMETERS REQUIRED**
+- `GET /user`: Get the user's profile information.** **No parameters are required**.**
 
-#### Get user profile endpoint
-this endpoint is used to get the user profile information `/user/ GET`
+- `PUT /user`: Edit the user's profile information. The request body should be a JSON object with the following parameters:
 
-**NO PARAMETERS REQUIRED**
-
-#### Edit user profile endpoint
-this end point is used to edit user details `/user/ PUT`
-and its paramters is as follow: 
 ```JSON
 {
   "username": "new user name",
   "email": "new email",
-  "password": "new password",
   "phonenumber": "new phone number"
 }
 ```
-**Each existed feild will be updated and the rest will stay as before**
+> Note that each existing field will be updated, and the rest will remain the same.
 
-#### Remove user endpoint
-this end point is used to delete a user profile `/user/ DELETE`
-end it requires username to submit the deletion
+- `PUT /user/password`: Change the user's password (if the user is logged in). The request body should be a JSON object with the following parameters:
+
+```JSON
+{
+  "password": "new user password",
+  "repassword": "repeat the new password"
+}
+```
+> Note that the new password must be at least 6 characters long and must contain at least one lowercase letter (a-z).
+
+- `DELETE /user`: Delete the user's account. The request body should be a JSON object with the following parameter:
+
 ```JSON
 {
   "username": "user username"
 }
 ```
-#### Add profile photo endpoint
-this endpoint is used to add photo to the user account `/user/photo POST'
-
-the request body have to be [multipart/formdata](https://refine.dev/blog/how-to-multipart-upload/) type
+- `POST /user/photo`: Add a profile photo to the user's account. The request body should be of type multipart/form-data and include a file input with the name "photo". The file should be an image with a file extension of .jpg, .jpeg, or .png.
 ```JSON 
 {
   "photo": "a file uploaded using html input type file element"
 }
 ```
-**the file have to be an image with image extention**
+
+
+### Posts Router
+The post router is available at the /posts endpoin
+
+#### Create a Post
+This endpoint is used to create a new post and is accessed via` POST /posts/post`. The request body should be of type[multipart/formdata](https://refine.dev/blog/how-to-multipart-upload/) and include the following parameters:
+
+```JSON
+{
+  "title": "post title",
+  "content": "post content",
+  "price": "book price (must be a number)",
+  "categories": "book categories (a comma-separated string of predefined words)",
+  "image": "file of type image"
+}
+```
+#### Edit a Post
+This endpoint is used to edit an existing post and is accessed via` PUT /posts/post`. The request body should include each existing field that needs to be edited:
+```JSON
+{
+  "title": "post title",
+  "content": "postcontent",
+  "price": "book price (must be a number)",
+  "categories": "book categories (a comma-separated string of predefined words)",
+  "image": "file of type image"
+}
+```
+
+#### Delete a Post
+This endpoint is used to delete an existing post and is accessed via `DELETE /posts/post`. The request body should be a JSON object with the following parameter:
+```JSON 
+{
+  "postid":"ID of the post to be deleted",
+}
+```
+
+#### Get Posts
+This endpoint is used to get a list of all posts and is accessed via `GET /posts.` **No parameters are required**. The response will be in JSON format.
+
+#### Get a Post 
+This endpoint is used to get a specific post by ID and is accessed via `GET /posts/post`. The request body should be a JSON object with the following parameter:`
+```JSON
+{
+  "postid": "ID of the post to be retrieved",
+}
+```
+#### Add Like to a Post
+This endpoint is used to add or remove a like to a post and is accessed via` POST /posts/post/like`. The request body should be a JSON object with the following parameter:
+
+```JSON 
+{
+  "Postid": "ID of the post to be liked",
+}
+```
+
+#### Get Categories
+This endpoint is used to get a list of all available categories and is accessed via` GET /posts/categories`. **No parameters are required**

@@ -10,5 +10,7 @@ router.post('/photo', user_controler.add_profile_photo);
 router.delete('/cart', user_controler.remove_from_cart);
 router.get('/cart', user_controler.get_cart_items);
 router.get('/', user_controler.get_profile);
+router.put('/', user_controler.edit_user_profile);
+router.put('/password',  user_controler.change_user_password);
 router.delete('/', user_controler.delete_user);
 module.exports = router;
