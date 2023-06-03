@@ -302,7 +302,7 @@ exports.get_cart_items = [
     try {
       const query = `
       SELECT c.quantity, c.id AS cart_id, p.title, p.content,
-      p.price *c.quantity AS final_price,p.price AS price_for_unit ,p.image   FROM cart AS c
+      p.price *c.quantity AS final_price,p.price AS price_for_unit ,p.image, p.id AS postid   FROM cart AS c
       INNER JOIN posts As p ON c.postid = p.id WHERE c.userid = ?;`;
 
       const itemsInCart = await queryDb(query, [req.user]);
