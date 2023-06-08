@@ -165,7 +165,7 @@ this end point is accessable via the route `GET /posts/search/?query` where the 
 - `author`: this will be the author name of the book
 - `title`: this will be a book title or a pice of it.
 
-#### finde posts 
+#### find posts 
 this end point is accessable via the route `GET /posts/find/?query` where the query is one or more  of the following
 - `like`: this can be either 1 or  undefined when this is 1 the result will be the user liked posts
 - `myposts`: this can be either 1 or undefined when this is 1 the result will be the user posts only
