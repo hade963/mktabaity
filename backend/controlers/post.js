@@ -4,6 +4,7 @@ const multer = require("multer");
 const { query, body, validationResult } = require("express-validator");
 const path = require("path");
 const { queryDb } = require("../utils");
+const { authenticate } = require("passport");
 
 
 exports.create_post = [
@@ -363,12 +364,9 @@ exports.get_categories = [
 
 
 exports.search_post = [
-  passport.authenticate('jwt', {session: false}),
   query('category')
   .escape(),
-  query('like')
-  .escape(),
-  query('myposts')
+  query('title')
   .escape(),
   query('author')
   .escape(),
@@ -399,12 +397,10 @@ exports.search_post = [
   if(req.query.author) { 
     whereClause.push(`p.author_name LIKE "%${req.query.author}%"`);
   }
-  if(req.query.like && req.user) { 
-    whereClause.push("pl.user_id= " + req.user);
+  if(req.query.title) { 
+    whereClause.push(`p.title LIKE "%${req.query.title}%"`);
   }
-  if(req.query.myposts && req.user) { 
-    whereClause.push("p.userid=" + req.user);
-  }
+
 
   if(whereClause.length > 0) { 
     query += whereClause.join(' AND ');
@@ -433,3 +429,66 @@ exports.search_post = [
     next(err);
   }
 }];
+
+exports.search_auth_post = [
+  passport.authenticate('jwt', {session: false}),
+  query('like')
+  .escape(),
+  query('myposts')
+  .escape(),
+  async (req, res, next) => { 
+    let query = `
+    SELECT 
+    p.id AS postid, 
+    p.title, 
+    p.author_name AS author,
+    CONCAT(u.firstname, " ", u.lastname) AS username,
+    p.content, 
+    p.likes_count,
+    p.price, 
+    p.createddate, 
+    p.image,
+    IF(pl.user_id = u.id, true, false) AS isLiked,          
+    GROUP_CONCAT(DISTINCT c.name ORDER BY c.name ASC SEPARATOR ',') AS categories
+    FROM posts AS p
+    INNER JOIN users AS u ON p.userid = u.id
+    INNER JOIN post_categories AS pc ON pc.postid = p.id 
+    INNER JOIN categories AS c ON c.id = pc.categoryid
+    LEFT JOIN post_likes AS pl ON pl.user_id = u.id
+    WHERE `;  
+  let whereClause = [];
+    if(req.query.like && req.user) { 
+      whereClause.push("pl.user_id= " + req.user);
+    }
+    if(req.query.myposts && req.user) { 
+      whereClause.push("p.userid=" + req.user);
+    }
+
+    if(whereClause.length > 0) { 
+      query += whereClause.join(' AND ');
+    }
+    else { 
+      return res.status(400).json({
+        msg: "لايوجد فلاتر للبحث",
+      });
+    }
+    try{
+      query += ' GROUP BY p.id;';
+      const posts = await queryDb(query);
+      if(posts.length > 0) { 
+        return res.status(200).json({
+          posts,
+        });
+      }
+      else { 
+        return res.status(404).json({
+          msg: 'لايوجد منشورات لعرضها',
+        });
+      }
+    }
+    catch(err) { 
+      console.log(err);
+      next(err);
+    }
+  }
+];

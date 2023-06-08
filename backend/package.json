@@ -10,7 +10,6 @@
     "build": "npm install --production"
   },
   "dependencies": {
-    "@cyclic.sh/s3fs": "^1.2.8",
     "async": "^3.2.4",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",

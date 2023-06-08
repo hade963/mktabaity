@@ -300,7 +300,7 @@ exports.get_cart_items = [
           items: itemsInCart,
         });
       } else {
-        return res.status(404).json({
+        return res.status(200).json({
           msg: "لا يوجد عناصر في السلة لعرضها ",
         });
       }
