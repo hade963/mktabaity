@@ -9,4 +9,5 @@ router.get('/', post_controler.get_posts);
 router.get('/post', post_controler.get_post);
 router.post('/post/likes', post_controler.add_like);
 router.get('/categories', post_controler.get_categories);
+router.get('/search', post_controler.search_post);
 module.exports= router;

@@ -4,16 +4,7 @@ const db = require("../db");
 const passport = require("passport");
 const jwt = require("jsonwebtoken");
 const { queryDb } = require("../utils");
-const multer = require("multer");
 const path = require("path");
-const fs = require("@cyclic.sh/s3fs");
-
-const storage = multer.diskStorage({
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
-});
-const upload = multer({ storage: storage });
 
 exports.user_signup = [
   body("firstname")
@@ -127,6 +118,7 @@ exports.user_signup = [
   },
 ];
 
+
 exports.user_login = [
   body("username")
     .trim()
@@ -143,61 +135,58 @@ exports.user_login = [
     }),
   body("password").escape().trim(),
   async (req, res, next) => {
-    if (req.session.token) {
-      return res.status(400).json({
-        msg: "تم تسجيل الدخول بالفعل",
-      });
-    }
-    try {
-      const errors = validationResult(req);
-
-      if (!errors.isEmpty()) {
+    if(req.headers.authorization) { 
+      let decoded;
+      try {
+        decoded = jwt.verify(req.headers.authorization.split('Bearer ').join(''), process.env.SECRET);
+        const user = await queryDb('SELECT * FROM users WHERE id = ?', decoded.id);
+        if (user.length > 0) {
+          return res.status(400).json({
+            msg: "تم تسجيل الدخول بالفعل",
+          });
+        }
+      }
+      catch(err) { 
         return res.status(400).json({
-          errors: errors.array(),
+          msg: 'حدث خطاء انثاء التسجيل  المعلومات غير صحيحة',
         });
       }
-
+    }
+      try {
+        const errors = validationResult(req);
+        
+        if (!errors.isEmpty()) {
+          return res.status(400).json({
+            errors: errors.array(),
+        });
+      }
+      
       const result = await queryDb(
         "SELECT * FROM users WHERE username = ? OR email = ?",
         [req.body.username, req.body.username]
-      );
-
-      const hash = result[0].password;
-      const isPasswordCorrect = await bcrypt.compare(req.body.password, hash);
-      if (isPasswordCorrect) {
-        const token = jwt.sign(
-          { id: result[0].id, username: result[0].username },
-          process.env.SECRET,
-          { expiresIn: "1d" }
         );
-        req.session.token = token;
-        return res.status(200).json({
-          msg: "تم تسجيل الدخول ",
-        });
-      } else {
-        return res.status(400).json({
-          msg: "كلمة المرور أو اسم المستخدم خاطئ",
-        });
-      }
-    } catch (err) {
-      console.error(err);
-      next(err);
-    }
-  },
-];
-
-exports.user_logout = [
-  passport.authenticate("jwt", { session: false }),
-  (req, res, next) => {
-    try {
-      req.session.destroy();
-      return res.status(200).json({
-        msg: "تم تسجيل الخروج",
-      });
-    } catch (err) {
-      console.error(err);
-      next(err);
-    }
+        
+        const hash = result[0].password;
+        const isPasswordCorrect = await bcrypt.compare(req.body.password, hash);
+        if (isPasswordCorrect) {
+          const token = jwt.sign(
+            { id: result[0].id, username: result[0].username },
+            process.env.SECRET,
+            { expiresIn: "1d" }
+            );
+            return res.status(200).json({
+              msg: "تم تسجيل الدخول ",
+              token: token,
+            });
+          } else {
+            return res.status(400).json({
+              msg: "كلمة المرور أو اسم المستخدم خاطئ",
+            });
+          }
+        } catch (err) {
+          console.error(err);
+          next(err);
+        }
   },
 ];
 
@@ -328,7 +317,7 @@ exports.get_profile = [
     try {
       const user = await queryDb(
         "SELECT firstname, lastname, username, email, phoneNumber, photo from users WHERE id = ?",
-        req.user
+        [req.user]
       );
 
       if (user.length > 0) {
@@ -347,39 +336,6 @@ exports.get_profile = [
   },
 ];
 
-exports.add_profile_photo = [
-  passport.authenticate("jwt", { session: false }),
-  upload.single("photo"),
-  async (req, res, next) => {
-    const imageRegEx = /\.(gif|jpe?g|jfif|tiff?|png|webp|bmp)$/i;
-
-    if (req.file && imageRegEx.test(req.file.filename)) {
-      fs.writeFile(req.file.filename, req.file.buffer, function (err) {
-        if (err) {
-          console.error(err);
-          return res
-            .status(500)
-            .send("حدث خطأ أثناء رفع الملف الرجاء المحاولة لاحقا");
-        }
-      });
-
-      try {
-        const query = "UPDATE users SET photo = ? WHERE id = ?";
-        await queryDb(query, [req.file.path.replace(/\\/g, "/"), req.user]);
-        return res.status(200).json({
-          msg: "تم اضافة الصورة بنجاح",
-        });
-      } catch (err) {
-        console.log(err);
-        next(err);
-      }
-    } else {
-      return res.status(400).json({
-        msg: "الملف المرسل غير صالح الرجاء المحاولة من جديد",
-      });
-    }
-  },
-];
 
 exports.delete_user = [
   passport.authenticate("jwt", { session: false }),
@@ -411,7 +367,6 @@ exports.edit_user_profile = [
   passport.authenticate("jwt", { session: false }),
   body("email")
     .trim()
-    .isEmail()
     .escape()
     .custom(async (value) => {
       const result = await queryDb(
@@ -423,23 +378,7 @@ exports.edit_user_profile = [
       }
       return true;
     }),
-  body("phonenumber")
-    .escape()
-    .trim()
-    .custom(async (value) => {
-      const result = await queryDb(
-        "SELECT * FROM users WHERE phoneNumber = ?",
-        value
-      );
-      if (result.length > 0) {
-        throw new Error("رقم الهاتف تم استخدامه بالفعل");
-      }
-      const regex = /^(\+?963|0)?9\d{8}$/;
-      if (!regex.test(value)) {
-        throw new Error("رقم الهاتف غير صالح للاسنخدام");
-      }
-      return true;
-    }),
+  body("phonenumber").escape().trim(),
   body("username")
     .custom(async (value) => {
       const result = await queryDb(
@@ -524,7 +463,10 @@ exports.change_user_password = [
     }
     try {
       const hash = bcrypt.hashSync(req.body.password);
-      await queryDb("UPDATE users SET password = ? WHERE id = ?", [req.user]);
+      await queryDb("UPDATE users SET password = ? WHERE id = ?", [
+        req.body.password,
+        req.user,
+      ]);
       res.status(200).json({
         msg: "تم تغير كلمة السر بنجاح",
       });

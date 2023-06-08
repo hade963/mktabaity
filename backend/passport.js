@@ -5,21 +5,13 @@ require('dotenv').config();
 const db = require('./db');
 
 const options = {
-  jwtFromRequest: ExtractJWT.fromExtractors([
-  function ExtractFromSession(req) { 
-    let token = null;
-    if(req && req.session) { 
-      token = req.session.token;
-    }
-    return token;
-  }
-  ]),
-  secretOrKey: process.env.SECRET || 'adjfadjfq@#$!#$%@$',
+  jwtFromRequest:  ExtractJWT.fromAuthHeaderAsBearerToken(),
+  secretOrKey: process.env.SECRET ,
 }
 
 
 passport.use(new JWTSTRATIGE(options, function(jwt_payload, done) { 
-    const user = db.query('SELECT * FROM users WHERE username=? AND id = ?', [jwt_payload.username, jwt_payload.id],function(e, r) {
+    const user = db.query('SELECT * FROM users WHERE  id = ?', [jwt_payload.id],function(e, r) {
       if(e) { 
         done(e, null, "" ,{message: "اسم المستخدم غير موجود"} );
       }
