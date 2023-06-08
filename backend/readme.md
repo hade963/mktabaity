@@ -161,7 +161,7 @@ This endpoint is used to get a list of all available categories and is accessed 
 #### search for posts
 this end point is accessable via the route `GET /posts/search/?query` where the query is one or more  of the following
 
--`category`: this can be a number represent the category id from `GET /posts/categories` end point
--`like`: this can be either 1 or  undefined when this is 1 the result will be the user liked posts
--`myposts`: this can be either 1 or undefined when this is 1 the result will be the user posts only
--`author`: this will be the author name of the book
+- `category`: this can be a number represent the category id from `GET /posts/categories` end point
+- `like`: this can be either 1 or  undefined when this is 1 the result will be the user liked posts
+- `myposts`: this can be either 1 or undefined when this is 1 the result will be the user posts only
+- `author`: this will be the author name of the book
